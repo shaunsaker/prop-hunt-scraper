@@ -1,0 +1,49 @@
+{
+  "name": "prop-hunt-scraper",
+  "version": "1.0.0",
+  "description": "A scraper for the PropHunt mobile app",
+  "engines": {
+    "node": ">= 12.13 <13"
+  },
+  "main": "build/src/main.js",
+  "devDependencies": {
+    "@types/jest": "~25.1.2",
+    "@types/node": "~12.12.27",
+    "@typescript-eslint/eslint-plugin": "~2.19.2",
+    "@typescript-eslint/parser": "~2.19.2",
+    "eslint": "~6.8.0",
+    "eslint-config-prettier": "~6.10.0",
+    "eslint-plugin-jest": "~23.7.0",
+    "jest": "~25.1.0",
+    "nodemon": "^2.0.2",
+    "prettier": "~1.19.1",
+    "rimraf": "~3.0.2",
+    "ts-jest": "~25.2.0",
+    "tsutils": "~3.17.0",
+    "typescript": "~3.8.2"
+  },
+  "scripts": {
+    "env:dev": "cp .env.dev .env && cp ./service-account-development.json ./src/firebase/service-account.json",
+    "env:prod": "cp .env.prod .env && cp ./service-account-production.json ./src/firebase/service-account.json",
+    "clean": "rimraf coverage build tmp",
+    "postinstall": "npm run build && cp ./src/firebase/service-account.json ./build/src/firebase/service-account.json",
+    "build": "yarn env:prod && tsc -p tsconfig.release.json",
+    "build:watch": "yarn env:dev && tsc -w -p tsconfig.release.json",
+    "start:dev": "nodemon ./build/src/main.js",
+    "start": "node ./build/src/main.js",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "deploy": "git push heroku master"
+  },
+  "author": "Shaun Saker <github@shaunsaker.info>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "dotenv": "^8.2.0",
+    "firebase-admin": "^8.10.0",
+    "moment": "^2.24.0",
+    "scrape-it": "^5.2.3",
+    "tslib": "~1.10.0"
+  }
+}
