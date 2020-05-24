@@ -9,6 +9,7 @@
   "devDependencies": {
     "@types/jest": "~25.1.2",
     "@types/node": "~12.12.27",
+    "@types/puppeteer": "^3.0.0",
     "@typescript-eslint/eslint-plugin": "~2.19.2",
     "@typescript-eslint/parser": "~2.19.2",
     "eslint": "~6.8.0",
@@ -29,7 +30,7 @@
     "postinstall": "npm run build && cp ./src/firebase/service-account.json ./build/src/firebase/service-account.json",
     "build": "yarn env:prod && tsc -p tsconfig.release.json",
     "build:watch": "yarn env:dev && tsc -w -p tsconfig.release.json",
-    "start:dev": "nodemon ./build/src/main.js",
+    "start:dev": "nodemon --ignore '*.json' ./build/src/main.js",
     "start": "node ./build/src/main.js",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "jest --coverage",
@@ -39,11 +40,10 @@
   "author": "Shaun Saker <github@shaunsaker.info>",
   "license": "Apache-2.0",
   "dependencies": {
-    "axios": "^0.19.2",
     "dotenv": "^8.2.0",
     "firebase-admin": "^8.10.0",
     "moment": "^2.24.0",
-    "scrape-it": "^5.2.3",
+    "puppeteer": "^3.1.0",
     "tslib": "~1.10.0"
   }
 }
