@@ -2,7 +2,10 @@ import * as puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const caseLinksPath = path.join(__dirname, '../../../../caseLinks.json');
+const caseLinksPath = path.join(
+  __dirname,
+  '../../../../database/caseLinks.json',
+);
 
 const getCaseLinksFromPage = async (
   page,
