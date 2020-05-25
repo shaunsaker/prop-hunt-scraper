@@ -32,3 +32,5 @@ build/
 tools
 service-account.json
 .git.bfg-report
+
+.env
