@@ -1,16 +1,13 @@
 import * as puppeteer from 'puppeteer';
-import * as fs from 'fs';
-import * as path from 'path';
-import { CaseLink } from '../database/models';
-import { readDBNode, DBNode } from '../database/readDBNode';
+import { CaseLink, DbNode } from '../database/models';
+import { readDatabase } from '../database/readDatabase';
+import { writeDatabase } from '../database/writeDatabase';
 
-const caseLinksPath = path.join(__dirname, '../database/caseLinks.json');
-
-const getCaseLinksFromPage = async (
+const getCaseLinks = async (
   page: puppeteer.Page,
   startAt: number,
   areFreshResults: boolean,
-  existingCaseLinks: CaseLink[],
+  existingData: CaseLink[],
 ) => {
   let newStartAt = startAt;
   let newAreFreshResults = areFreshResults;
@@ -36,15 +33,15 @@ const getCaseLinksFromPage = async (
 
   const caseLinks = resultLinks.filter(link => link.text.startsWith('Case No'));
   console.log(`Found ${caseLinks.length} case links.`);
-  const newCaseLinks = existingCaseLinks;
+  const newData = existingData;
 
   for (const link of caseLinks) {
-    const caseExists = existingCaseLinks.some(
+    const caseExists = existingData.some(
       existingLink => existingLink.href === link.href,
     );
 
     if (!caseExists) {
-      newCaseLinks.push(link);
+      newData.push(link);
     } else {
       console.log(`${link.text} already exists, stopping scrape.`);
       newAreFreshResults = false;
@@ -53,32 +50,22 @@ const getCaseLinksFromPage = async (
   }
 
   // save results after each fetch in case of errors
-  fs.writeFileSync(caseLinksPath, JSON.stringify(newCaseLinks));
+  writeDatabase(DbNode.caseLinks, newData);
 
   if (newAreFreshResults) {
     newStartAt += resultLinks.length;
-    await getCaseLinksFromPage(
-      page,
-      newStartAt,
-      newAreFreshResults,
-      newCaseLinks,
-    );
+    await getCaseLinks(page, newStartAt, newAreFreshResults, newData);
   }
 };
 
-export const getCaseLinks = async () => {
+export const getCasesLinks = async () => {
   try {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const startAt = 1;
     const areFreshResults = true;
-    const existingCaseLinks: CaseLink[] = readDBNode(DBNode.caseLinks);
-    await getCaseLinksFromPage(
-      page,
-      startAt,
-      areFreshResults,
-      existingCaseLinks,
-    );
+    const existingData: CaseLink[] = readDatabase(DbNode.caseLinks);
+    await getCaseLinks(page, startAt, areFreshResults, existingData);
     await browser.close();
   } catch (error) {
     console.log(error);

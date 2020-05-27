@@ -1,7 +1,7 @@
-// import { getCaseLinks } from './getCaseLinks';
-import { getCaseAuctionData } from './getCaseAuctionData';
+// import { getCasesLinks } from './getCasesLinks';
+import { getCasesAuctionData } from './getCasesAuctionData';
 
 export const greenGazette = async () => {
-  // await getCaseLinks();
-  await getCaseAuctionData();
+  // await getCasesLinks();
+  await getCasesAuctionData();
 };

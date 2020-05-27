@@ -1,9 +1,15 @@
+export enum DbNode {
+  caseAuctionData = 'caseAuctionData',
+  caseLinks = 'caseLinks',
+}
+
 export interface CaseLink {
   href: string;
-  text: string;
+  text: string; // used as id in CaseAuctinoData
 }
 
 export interface CaseAuctionData {
+  href: string;
   auctionVenue: string;
   propertyHref: string; // get from propertyOnAuction
   auctionDate: string;
