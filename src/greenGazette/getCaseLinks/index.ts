@@ -1,17 +1,16 @@
 import * as puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CaseLink } from '../database/models';
+import { readDBNode, DBNode } from '../database/readDBNode';
 
-const caseLinksPath = path.join(
-  __dirname,
-  '../../../../database/caseLinks.json',
-);
+const caseLinksPath = path.join(__dirname, '../database/caseLinks.json');
 
 const getCaseLinksFromPage = async (
-  page,
-  startAt,
-  areFreshResults,
-  existingCaseLinks,
+  page: puppeteer.Page,
+  startAt: number,
+  areFreshResults: boolean,
+  existingCaseLinks: CaseLink[],
 ) => {
   let newStartAt = startAt;
   let newAreFreshResults = areFreshResults;
@@ -73,11 +72,7 @@ export const getCaseLinks = async () => {
     const page = await browser.newPage();
     const startAt = 1;
     const areFreshResults = true;
-    const existingCaseLinks = JSON.parse(
-      fs.readFileSync(caseLinksPath, {
-        encoding: 'utf-8',
-      }),
-    );
+    const existingCaseLinks: CaseLink[] = readDBNode(DBNode.caseLinks);
     await getCaseLinksFromPage(
       page,
       startAt,
