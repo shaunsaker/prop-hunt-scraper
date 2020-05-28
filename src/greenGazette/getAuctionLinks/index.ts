@@ -1,18 +1,18 @@
 import * as puppeteer from 'puppeteer';
-import { CaseLink, DbNode } from '../database/models';
+import { AuctionLink, DbNode } from '../database/models';
 import { readDatabase } from '../database/readDatabase';
 import { writeDatabase } from '../database/writeDatabase';
 
-const getCaseLinks = async (
+const getAuctionLinksFromPage = async (
   page: puppeteer.Page,
   startAt: number,
   areFreshResults: boolean,
-  existingData: CaseLink[],
+  existingData: AuctionLink[],
 ) => {
   let newStartAt = startAt;
   let newAreFreshResults = areFreshResults;
   const url = `https://www.greengazette.co.za/search?q=auction%20"Case%20No"&StartAt=${startAt}&Count=50&Phrase=&Exclude=&Filter=&From=`;
-  console.log(`Fetching case links from ${url}.`);
+  console.log(`Fetching auction links from ${url}.`);
   await page.goto(url);
   await page.waitForSelector('#main');
 
@@ -31,16 +31,18 @@ const getCaseLinks = async (
     newAreFreshResults = false;
   }
 
-  const caseLinks = resultLinks.filter(link => link.text.startsWith('Case No'));
-  console.log(`Found ${caseLinks.length} case links.`);
+  const auctionLink = resultLinks.filter(link =>
+    link.text.startsWith('Case No'),
+  );
+  console.log(`Found ${auctionLink.length} auction links.`);
   const newData = existingData;
 
-  for (const link of caseLinks) {
-    const caseExists = existingData.some(
+  for (const link of auctionLink) {
+    const dataExists = existingData.some(
       existingLink => existingLink.href === link.href,
     );
 
-    if (!caseExists) {
+    if (!dataExists) {
       newData.push(link);
     } else {
       console.log(`${link.text} already exists, stopping scrape.`);
@@ -50,22 +52,27 @@ const getCaseLinks = async (
   }
 
   // save results after each fetch in case of errors
-  writeDatabase(DbNode.caseLinks, newData);
+  writeDatabase(DbNode.auctionLink, newData);
 
   if (newAreFreshResults) {
     newStartAt += resultLinks.length;
-    await getCaseLinks(page, newStartAt, newAreFreshResults, newData);
+    await getAuctionLinksFromPage(
+      page,
+      newStartAt,
+      newAreFreshResults,
+      newData,
+    );
   }
 };
 
-export const getCasesLinks = async () => {
+export const getAuctionLinks = async () => {
   try {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const startAt = 1;
     const areFreshResults = true;
-    const existingData: CaseLink[] = readDatabase(DbNode.caseLinks);
-    await getCaseLinks(page, startAt, areFreshResults, existingData);
+    const existingData: AuctionLink[] = readDatabase(DbNode.auctionLink);
+    await getAuctionLinksFromPage(page, startAt, areFreshResults, existingData);
     await browser.close();
   } catch (error) {
     console.log(error);

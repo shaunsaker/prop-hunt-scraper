@@ -1,6 +1,6 @@
-import { CaseAuctionData, TargetDataItem } from '../database/models';
+import { AuctionData, TargetDataItem } from '../database/models';
 
-export const targetData: TargetDataItem<CaseAuctionData>[] = [
+export const targetData: TargetDataItem<AuctionData>[] = [
   {
     key: 'auctionVenue',
     selector:

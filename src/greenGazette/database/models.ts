@@ -1,6 +1,6 @@
 export enum DbNode {
-  caseAuctionData = 'caseAuctionData',
-  caseLinks = 'caseLinks',
+  auctionData = 'auctionData',
+  auctionLink = 'auctionLink',
 }
 
 export interface TargetDataItem<T> {
@@ -9,12 +9,12 @@ export interface TargetDataItem<T> {
   href?: boolean;
 }
 
-export interface CaseLink {
+export interface AuctionLink {
   href: string;
   text: string; // used as id in CaseAuctinoData
 }
 
-export interface CaseAuctionData {
+export interface AuctionData {
   href: string;
   auctionVenue: string;
   propertyHref: string; // get from propertyOnAuction
@@ -35,25 +35,4 @@ export interface CaseAuctionData {
   attorneyUnparsedLine5: string;
 }
 
-export interface CasePropertyData {}
-
-export interface CaseData {
-  auction: {
-    venue: string;
-    date: string;
-  };
-  sheriff: {
-    id: string;
-    name: string;
-    phone: string;
-    cell: string;
-    email: string;
-    poBox: string;
-  };
-  attoryney: {
-    name: string;
-    address: string;
-    tel: string;
-    fax: string;
-  };
-}
+export interface PropertyData {}

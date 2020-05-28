@@ -1,18 +1,21 @@
 import * as puppeteer from 'puppeteer';
 import { targetData } from './targetData';
 import { readDatabase } from '../database/readDatabase';
-import { CaseLink, DbNode, CaseAuctionData } from '../database/models';
+import { AuctionLink, DbNode, AuctionData } from '../database/models';
 import { writeDatabase } from '../database/writeDatabase';
 
-const caseLinkTextToCaseNumber = (caseLinkText: string) => {
-  return caseLinkText.replace('Case No. ', '');
+const auctionLinkToAuctionId = (auctionLinkText: string) => {
+  return auctionLinkText.replace('Case No. ', '');
 };
 
-const getCaseAuctionData = async (page: puppeteer.Page, caseLink: CaseLink) => {
-  const { href: url } = caseLink;
-  console.log(`Fetching case data from ${url}.`);
+const getAuctionData = async (
+  page: puppeteer.Page,
+  auctionLink: AuctionLink,
+) => {
+  const { href: url } = auctionLink;
+  console.log(`Fetching auction data from ${url}.`);
   await page.goto(url);
-  const data = {} as CaseAuctionData;
+  const data = {} as AuctionData;
   try {
     await page.waitForSelector('#main', { timeout: 5000 });
 
@@ -71,28 +74,25 @@ const getCaseAuctionData = async (page: puppeteer.Page, caseLink: CaseLink) => {
   }
 
   // save results after each fetch in case of errors
-  const existingData: CaseAuctionData[] = readDatabase(DbNode.caseAuctionData);
+  const existingData: AuctionData[] = readDatabase(DbNode.auctionData);
   const newData = { ...existingData };
-  newData[caseLinkTextToCaseNumber(caseLink.text)] = data;
-  writeDatabase(DbNode.caseAuctionData, newData);
+  newData[auctionLinkToAuctionId(auctionLink.text)] = data;
+  writeDatabase(DbNode.auctionData, newData);
 };
 
-export const getCasesAuctionData = async () => {
+export const getAuctionsData = async () => {
   try {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
-    const caseLinks: CaseLink[] = readDatabase(DbNode.caseLinks);
-    const existingData: CaseAuctionData[] = readDatabase(
-      DbNode.caseAuctionData,
-    );
+    const auctionLinks: AuctionLink[] = readDatabase(DbNode.auctionLink);
+    const existingData: AuctionData[] = readDatabase(DbNode.auctionData);
 
-    for (const caseLink of caseLinks) {
-      const dataForCaseLinkExists =
-        existingData[caseLinkTextToCaseNumber(caseLink.text)];
-      if (!dataForCaseLinkExists) {
-        await getCaseAuctionData(page, caseLink);
+    for (const auctionLink of auctionLinks) {
+      const dataExists = existingData[auctionLinkToAuctionId(auctionLink.text)];
+      if (!dataExists) {
+        await getAuctionData(page, auctionLink);
       } else {
-        console.log(`Already have data for ${caseLink.href}.`);
+        console.log(`Already have data for ${auctionLink.href}.`);
       }
     }
 
