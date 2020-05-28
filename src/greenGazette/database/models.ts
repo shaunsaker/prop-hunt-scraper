@@ -3,6 +3,12 @@ export enum DbNode {
   caseLinks = 'caseLinks',
 }
 
+export interface TargetDataItem<T> {
+  key: keyof T;
+  selector: string;
+  href?: boolean;
+}
+
 export interface CaseLink {
   href: string;
   text: string; // used as id in CaseAuctinoData

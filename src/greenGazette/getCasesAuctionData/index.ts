@@ -1,12 +1,7 @@
 import * as puppeteer from 'puppeteer';
 import { targetData } from './targetData';
 import { readDatabase } from '../database/readDatabase';
-import {
-  CaseLink,
-  CasePropertyData,
-  DbNode,
-  CaseAuctionData,
-} from '../database/models';
+import { CaseLink, DbNode, CaseAuctionData } from '../database/models';
 import { writeDatabase } from '../database/writeDatabase';
 
 const caseLinkTextToCaseNumber = (caseLinkText: string) => {
@@ -76,7 +71,7 @@ const getCaseAuctionData = async (page: puppeteer.Page, caseLink: CaseLink) => {
   }
 
   // save results after each fetch in case of errors
-  const existingData: CasePropertyData[] = readDatabase(DbNode.caseAuctionData);
+  const existingData: CaseAuctionData[] = readDatabase(DbNode.caseAuctionData);
   const newData = { ...existingData };
   newData[caseLinkTextToCaseNumber(caseLink.text)] = data;
   writeDatabase(DbNode.caseAuctionData, newData);
@@ -87,7 +82,7 @@ export const getCasesAuctionData = async () => {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const caseLinks: CaseLink[] = readDatabase(DbNode.caseLinks);
-    const existingData: CasePropertyData[] = readDatabase(
+    const existingData: CaseAuctionData[] = readDatabase(
       DbNode.caseAuctionData,
     );
 

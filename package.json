@@ -30,7 +30,7 @@
     "postinstall": "npm run build && cp ./src/firebase/service-account.json ./build/src/firebase/service-account.json",
     "build": "yarn env:prod && tsc -p tsconfig.release.json",
     "build:watch": "yarn env:dev && tsc -w -p tsconfig.release.json",
-    "start:dev": "nodemon --ignore '*.json' ./build/src/main.js",
+    "start:dev": "nodemon --ignore '*.json' ./dist/src/main.js",
     "start": "node ./build/src/main.js",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "jest --coverage",
