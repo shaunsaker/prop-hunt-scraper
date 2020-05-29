@@ -1,7 +1,6 @@
 import * as puppeteer from 'puppeteer';
-import { AuctionLink, DbNode } from '../database/models';
-import { readDatabase } from '../database/readDatabase';
-import { writeDatabase } from '../database/writeDatabase';
+import { AuctionLink } from '../database/models';
+import { db } from '../database';
 
 const getAuctionLinksFromPage = async (
   page: puppeteer.Page,
@@ -12,7 +11,7 @@ const getAuctionLinksFromPage = async (
   let newStartAt = startAt;
   let newAreFreshResults = areFreshResults;
   const url = `https://www.greengazette.co.za/search?q=auction%20"Case%20No"&StartAt=${startAt}&Count=50&Phrase=&Exclude=&Filter=&From=`;
-  console.log(`Fetching auction links from ${url}.`);
+  console.log(`Fetching auction links from ${url}`);
   await page.goto(url);
   await page.waitForSelector('#main');
 
@@ -52,7 +51,7 @@ const getAuctionLinksFromPage = async (
   }
 
   // save results after each fetch in case of errors
-  writeDatabase(DbNode.auctionLink, newData);
+  db.set('auctionLinks', newData).write();
 
   if (newAreFreshResults) {
     newStartAt += resultLinks.length;
@@ -71,7 +70,7 @@ export const getAuctionLinks = async () => {
     const page = await browser.newPage();
     const startAt = 1;
     const areFreshResults = true;
-    const existingData: AuctionLink[] = readDatabase(DbNode.auctionLink);
+    const existingData = db.get('auctionLinks').value();
     await getAuctionLinksFromPage(page, startAt, areFreshResults, existingData);
     await browser.close();
   } catch (error) {

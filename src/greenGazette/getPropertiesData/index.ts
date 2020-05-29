@@ -1,9 +1,8 @@
 import * as puppeteer from 'puppeteer';
-import { readDatabase } from '../database/readDatabase';
-import { DbNode, AuctionData, PropertyData } from '../database/models';
-import { writeDatabase } from '../database/writeDatabase';
+import { AuctionData, PropertyData } from '../database/models';
 import { targetData } from './targetData';
 import { scrapeTargetData } from '../scrapeTargetData';
+import { db } from '../database';
 
 const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
   let data = {} as PropertyData;
@@ -13,25 +12,19 @@ const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
     console.log(error);
   }
 
-  // save results after each fetch in case of errors
-  const existingData: AuctionData[] = readDatabase(DbNode.propertyData);
-  const newData = { ...existingData };
-  newData[auction.titleDeed] = data;
-  writeDatabase(DbNode.propertyData, newData);
+  db.set(`properties.${auction.titleDeed}`, data).write();
 };
 
 export const getPropertiesData = async () => {
   try {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
-    const auctionData: Record<string, AuctionData> = readDatabase(
-      DbNode.auctionData,
-    );
-    const existingData: Record<string, PropertyData> = readDatabase(
-      DbNode.propertyData,
+    const auctionsData = db.get('auctions').value();
+    const existingData = db.get('properties').value();
+    const auctionsArray = Object.keys(auctionsData).map(
+      key => auctionsData[key],
     );
 
-    const auctionsArray = Object.keys(auctionData).map(key => auctionData[key]);
     for (const auction of auctionsArray) {
       const isEmpty = Object.keys(auction).length === 0;
       if (!isEmpty) {

@@ -1,9 +1,3 @@
-export enum DbNode {
-  propertyData = 'propertyData',
-  auctionData = 'auctionData',
-  auctionLink = 'auctionLink',
-}
-
 export interface AuctionLink {
   href: string;
   text: string; // used as id in CaseAuctinoData
@@ -50,3 +44,15 @@ export interface PropertyData {
   livingRooms: string;
   garages: string;
 }
+
+export interface Database {
+  auctionLinks: AuctionLink[];
+  auctions: Record<string, AuctionData>;
+  properties: Record<string, PropertyData>;
+}
+
+export const initialState = {
+  auctionLinks: [],
+  auctions: {},
+  properties: {},
+};

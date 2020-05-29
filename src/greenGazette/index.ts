@@ -1,9 +1,9 @@
-// import { getAuctionsLinks } from './getAuctionsLinks';
-// import { getAuctionsData } from './getAuctionsData';
-import { getPropertiesData } from './getPropertiesData';
+import { getAuctionLinks } from './getAuctionLinks';
+import { getAuctionsData } from './getAuctionsData';
+// import { getPropertiesData } from './getPropertiesData';
 
 export const greenGazette = async () => {
-  // await getAuctionsLinks();
-  // await getAuctionsData();
-  await getPropertiesData();
+  await getAuctionLinks();
+  await getAuctionsData();
+  // await getPropertiesData();
 };

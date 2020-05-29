@@ -1,12 +1,12 @@
 import * as puppeteer from 'puppeteer';
 import { targetData } from './targetData';
-import { readDatabase } from '../database/readDatabase';
-import { AuctionLink, DbNode, AuctionData } from '../database/models';
-import { writeDatabase } from '../database/writeDatabase';
+import { AuctionLink, AuctionData } from '../database/models';
 import { scrapeTargetData } from '../scrapeTargetData';
+import { db } from '../database';
 
 const auctionLinkToAuctionId = (auctionLinkText: string) => {
-  return auctionLinkText.replace('Case No. ', '');
+  const regex = new RegExp(/Case No.? ? »? ?/gi);
+  return auctionLinkText.replace(regex, '');
 };
 
 const getAuctionData = async (
@@ -55,26 +55,24 @@ const getAuctionData = async (
     console.log(error);
   }
 
-  // save results after each fetch in case of errors
-  const existingData: AuctionData[] = readDatabase(DbNode.auctionData);
-  const newData = { ...existingData };
-  newData[auctionLinkToAuctionId(auctionLink.text)] = data;
-  writeDatabase(DbNode.auctionData, newData);
+  const auctionId = auctionLinkToAuctionId(auctionLink.text);
+  console.log({ auctionId });
+  db.set(`auctions.${auctionId}`, data).write();
 };
 
 export const getAuctionsData = async () => {
   try {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
-    const auctionLinks: AuctionLink[] = readDatabase(DbNode.auctionLink);
-    const existingData: AuctionData[] = readDatabase(DbNode.auctionData);
+    const auctionLinks = db.get('auctionLinks').value();
+    const existingData = db.get('auctions').value();
 
     for (const auctionLink of auctionLinks) {
       const dataExists = existingData[auctionLinkToAuctionId(auctionLink.text)];
       if (!dataExists) {
         await getAuctionData(page, auctionLink);
       } else {
-        console.log(`Already have data for ${auctionLink.href}.`);
+        // console.log(`Already have data for ${auctionLink.href}.`);
       }
     }
 
