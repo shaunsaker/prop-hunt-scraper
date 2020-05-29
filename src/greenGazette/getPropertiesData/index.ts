@@ -34,8 +34,6 @@ export const getPropertiesData = async () => {
         } else {
           console.log(`Already have data for ${auction.href}.`);
         }
-      } else {
-        console.log(`Data is empty for ${auction.href}.`);
       }
     }
 
