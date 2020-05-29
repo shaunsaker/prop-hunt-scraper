@@ -1,4 +1,5 @@
-import { AuctionData, TargetDataItem } from '../database/models';
+import { AuctionData } from '../database/models';
+import { TargetDataItem } from '../scrapeTargetData';
 
 export const targetData: TargetDataItem<AuctionData>[] = [
   {

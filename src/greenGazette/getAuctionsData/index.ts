@@ -3,6 +3,7 @@ import { targetData } from './targetData';
 import { readDatabase } from '../database/readDatabase';
 import { AuctionLink, DbNode, AuctionData } from '../database/models';
 import { writeDatabase } from '../database/writeDatabase';
+import { scrapeTargetData } from '../scrapeTargetData';
 
 const auctionLinkToAuctionId = (auctionLinkText: string) => {
   return auctionLinkText.replace('Case No. ', '');
@@ -12,49 +13,28 @@ const getAuctionData = async (
   page: puppeteer.Page,
   auctionLink: AuctionLink,
 ) => {
-  const { href: url } = auctionLink;
-  console.log(`Fetching auction data from ${url}.`);
-  await page.goto(url);
-  const data = {} as AuctionData;
+  let data = {} as AuctionData;
   try {
-    await page.waitForSelector('#main', { timeout: 5000 });
-
-    for await (const target of targetData) {
-      const value = await page.$$eval(
-        target.selector,
-        elements =>
-          elements.map(el => {
-            return {
-              text: el.textContent,
-              href: el.getAttribute('href'),
-            };
-          })[0],
-      );
-      if (target.href) {
-        data[target.key] = value.href;
-      } else {
-        data[target.key] = value
-          ? value.text.trim().replace(/(\r\n|\n|\r)/gm, '')
-          : '';
-      }
-    }
-
-    data.href = url;
+    const scrapedData = await scrapeTargetData<AuctionData>(
+      page,
+      auctionLink.href,
+      targetData,
+    );
 
     /*
      * HACK:
      * Sometimes there isn't sheriff data and the web page's tables are not unique enough
      * to target correctly so we'll manually reassign the data in that case
      */
-    const attorneyFieldsAreBlank = !Object.keys(data).some(
-      key => key.includes('attorney') && data[key],
+    const attorneyFieldsAreBlank = !Object.keys(scrapedData).some(
+      key => key.includes('attorney') && scrapedData[key],
     );
     if (attorneyFieldsAreBlank) {
-      let nextAttorneyKey = Object.keys(data).filter(key =>
+      let nextAttorneyKey = Object.keys(scrapedData).filter(key =>
         key.includes('attorney'),
       )[0];
       let count = 0;
-      Object.keys(data).forEach(key => {
+      Object.keys(scrapedData).forEach(key => {
         const isSheriffField = key.includes('sheriff');
         const isSheriffUnparsedIdField = key.includes('Unparsed');
         if (isSheriffField && !isSheriffUnparsedIdField) {
@@ -64,11 +44,13 @@ const getAuctionData = async (
             newCount.toString(),
           );
           count = newCount;
-          data[nextAttorneyKey] = data[key];
-          data[key] = '';
+          scrapedData[nextAttorneyKey] = scrapedData[key];
+          scrapedData[key] = '';
         }
       });
     }
+
+    data = scrapedData;
   } catch (error) {
     console.log(error);
   }

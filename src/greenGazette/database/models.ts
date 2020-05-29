@@ -1,12 +1,7 @@
 export enum DbNode {
+  propertyData = 'propertyData',
   auctionData = 'auctionData',
   auctionLink = 'auctionLink',
-}
-
-export interface TargetDataItem<T> {
-  key: keyof T;
-  selector: string;
-  href?: boolean;
 }
 
 export interface AuctionLink {
@@ -35,4 +30,23 @@ export interface AuctionData {
   attorneyUnparsedLine5: string;
 }
 
-export interface PropertyData {}
+export interface PropertyData {
+  href: string;
+  propertyType: string;
+  erfNumber: string;
+  registeredSize: string;
+  portionNumber: string;
+  municipality: string;
+  township: string;
+  province: string;
+  registrationDivision: string;
+  coordinates: string;
+  deedsOffice: string;
+  titleDeed: string;
+  lastSellingPrice: string;
+  dateSold: string;
+  bedrooms: string;
+  bathrooms: string;
+  livingRooms: string;
+  garages: string;
+}
