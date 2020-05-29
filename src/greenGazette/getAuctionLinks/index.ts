@@ -66,12 +66,14 @@ const getAuctionLinksFromPage = async (
 
 export const getAuctionLinks = async () => {
   try {
+    console.log('Fetching auction links...');
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const startAt = 1;
     const areFreshResults = true;
     const existingData = db.get('auctionLinks').value();
     await getAuctionLinksFromPage(page, startAt, areFreshResults, existingData);
+    console.log('Fetched auction links.');
     await browser.close();
   } catch (error) {
     console.log(error);

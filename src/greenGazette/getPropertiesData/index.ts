@@ -17,6 +17,7 @@ const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
 
 export const getPropertiesData = async () => {
   try {
+    console.log('Fetching properties data...');
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const auctionsData = db.get('auctions').value();
@@ -32,10 +33,11 @@ export const getPropertiesData = async () => {
         if (!dataExists) {
           await getPropertyData(page, auction);
         } else {
-          console.log(`Already have data for ${auction.href}.`);
+          // console.log(`Already have data for ${auction.href}.`);
         }
       }
     }
+    console.log('Fetched properties data.');
 
     await browser.close();
   } catch (error) {

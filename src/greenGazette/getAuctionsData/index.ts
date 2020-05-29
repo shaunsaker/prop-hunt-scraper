@@ -62,6 +62,7 @@ const getAuctionData = async (
 
 export const getAuctionsData = async () => {
   try {
+    console.log('Fetching auctions data...');
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const auctionLinks = db.get('auctionLinks').value();
@@ -76,6 +77,7 @@ export const getAuctionsData = async () => {
       }
     }
 
+    console.log('Fetched auctions data.');
     await browser.close();
   } catch (error) {
     console.log(error);
