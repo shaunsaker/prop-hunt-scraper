@@ -45,6 +45,13 @@ export interface PropertyData {
   garages: string;
 }
 
+export interface SuburbCsv {
+  Town: string;
+  'Box code': string;
+  'Street code': string;
+  City: string;
+}
+
 type CityId = string;
 export interface City {
   name: string;
@@ -53,6 +60,8 @@ export interface City {
 type SuburbId = string;
 export interface Suburb {
   name: string;
+  cityId: string;
+  streetCode: string;
 }
 
 export interface Database {
