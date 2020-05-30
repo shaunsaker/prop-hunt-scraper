@@ -45,14 +45,28 @@ export interface PropertyData {
   garages: string;
 }
 
+type CityId = string;
+export interface City {
+  name: string;
+}
+
+type SuburbId = string;
+export interface Suburb {
+  name: string;
+}
+
 export interface Database {
   auctionLinks: AuctionLink[];
   auctions: Record<string, AuctionData>;
   properties: Record<string, PropertyData>;
+  cities: Record<CityId, City>;
+  suburbs: Record<SuburbId, Suburb>;
 }
 
-export const initialState = {
+export const initialState: Database = {
   auctionLinks: [],
   auctions: {},
   properties: {},
+  cities: {},
+  suburbs: {},
 };
