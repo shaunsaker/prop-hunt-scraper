@@ -36,6 +36,7 @@ const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
   // If the property has a titleDeed number but the auction doesn't
   if (!auction.titleDeed && property.titleDeed) {
     // Remove the old property entry using the auction
+    // This shouldn't exist but just in case
     const oldPropertyId = getPropertyId(auction);
     db.get('properties')
       .unset(oldPropertyId)
