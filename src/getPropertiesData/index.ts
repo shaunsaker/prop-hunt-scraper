@@ -4,6 +4,10 @@ import { targetData } from './targetData';
 import { scrapeTargetData } from '../scrapeTargetData';
 import { db } from '../database';
 
+const getPropertyIdFromLink = (link: string) => {
+  return link.split('/').reverse()[0];
+};
+
 const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
   let data = {} as PropertyData;
   try {
@@ -12,7 +16,16 @@ const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
     console.log(error);
   }
 
-  db.set(`properties.${auction.titleDeed}`, data).write();
+  // Try to use the titleDeed if it exists, otherwise use the propertyHref id
+  const propertyId =
+    auction.titleDeed ||
+    data.titleDeed ||
+    getPropertyIdFromLink(auction.propertyHref);
+
+  db.set(`properties.${propertyId}`, {
+    ...data,
+    propertyId,
+  }).write();
 };
 
 export const getPropertiesData = async () => {

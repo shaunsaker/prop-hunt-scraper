@@ -56,7 +56,6 @@ const getAuctionData = async (
   }
 
   const auctionId = auctionLinkToAuctionId(auctionLink.text);
-  console.log({ auctionId });
   db.set(`auctions.${auctionId}`, data).write();
 };
 
