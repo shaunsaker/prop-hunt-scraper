@@ -4,30 +4,44 @@ import { SuburbCsv, City, Suburb } from '../database/models';
 import { db } from '../database';
 
 export const createCitiesSuburbsData = async () => {
+  // Resets
+  // db.unset('cities').write();
+  // db.unset('suburbs').write();
+
   const jsonArray: SuburbCsv[] = await csvtojson().fromFile(
     path.join(__dirname, '../../../cities-suburbs-south-africa.csv'),
   );
   console.log(`Found ${jsonArray.length} suburbs.`);
 
+  let count = 0;
   for (const item of jsonArray) {
+    count += 1;
+    console.log(`Processing suburb: ${count} / ${jsonArray.length}`);
     if (item.City && item.Town) {
-      const cityId = item.City;
+      const suburbId = item.Town;
+      const cityId = item.City === '-' ? suburbId : item.City;
       const city: City = {
         name: cityId,
       };
-      const suburbId = item.Town;
       const suburb: Suburb = {
         name: suburbId,
         cityId,
         streetCode: item['Street code'],
       };
 
-      db.get('cities')
-        .set(cityId, city)
-        .write();
-      db.get('suburbs')
-        .set(suburbId, suburb)
-        .write();
+      const cityExists = Boolean(db.get(`cities.${cityId}`).value());
+      if (!cityExists) {
+        db.get('cities')
+          .set(cityId, city)
+          .write();
+      }
+
+      const suburbExists = Boolean(db.get(`suburbs.${suburbId}`).value());
+      if (!suburbExists) {
+        db.get('suburbs')
+          .set(suburbId, suburb)
+          .write();
+      }
     }
   }
 
