@@ -26,15 +26,31 @@ export const getPropertyId = (
 };
 
 const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
-  let data = {} as PropertyData;
+  let property = {} as PropertyData;
   try {
-    data = await scrapeTargetData(page, auction.propertyHref, targetData);
+    property = await scrapeTargetData(page, auction.propertyHref, targetData);
   } catch (error) {
     console.log(error);
   }
 
-  const propertyId = getPropertyId(auction, data);
-  db.set(`properties.${propertyId}`, data).write();
+  // If the property has a titleDeed number but the auction doesn't
+  if (!auction.titleDeed && property.titleDeed) {
+    // Remove the old property entry using the auction
+    const oldPropertyId = getPropertyId(auction);
+    db.get('properties')
+      .unset(oldPropertyId)
+      .write();
+    // Add it to the auction for next time
+    db.update(`auctions.${auction.id}`, auction => {
+      return {
+        ...auction,
+        titleDeed: property.titleDeed,
+      };
+    });
+  }
+
+  const propertyId = getPropertyId(auction, property);
+  db.set(`properties.${propertyId}`, property).write();
 };
 
 export const getPropertiesData = async () => {
@@ -43,9 +59,12 @@ export const getPropertiesData = async () => {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const auctionsData = db.get('auctions').value();
-    const auctionsArray = Object.keys(auctionsData).map(
-      key => auctionsData[key],
-    );
+    const auctionsArray = Object.keys(auctionsData).map(key => {
+      return {
+        ...auctionsData[key],
+        id: key,
+      };
+    });
 
     for (const auction of auctionsArray) {
       const isEmpty = Object.keys(auction).length === 0;
