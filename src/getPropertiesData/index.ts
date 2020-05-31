@@ -4,8 +4,25 @@ import { targetData } from './targetData';
 import { scrapeTargetData } from '../scrapeTargetData';
 import { db } from '../database';
 
-const getPropertyIdFromLink = (link: string) => {
-  return link.split('/').reverse()[0];
+export const getPropertyId = (
+  auction?: AuctionData,
+  property?: PropertyData,
+) => {
+  const getIdFromLink = link => {
+    return link.split('/').reverse()[0];
+  };
+
+  const propertyId =
+    auction?.titleDeed ||
+    property?.titleDeed ||
+    (auction && getIdFromLink(auction.propertyHref)) ||
+    (property && getIdFromLink(property.href));
+
+  if (!propertyId) {
+    throw new Error('No property id.');
+  }
+
+  return propertyId;
 };
 
 const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
@@ -16,16 +33,8 @@ const getPropertyData = async (page: puppeteer.Page, auction: AuctionData) => {
     console.log(error);
   }
 
-  // Try to use the titleDeed if it exists, otherwise use the propertyHref id
-  const propertyId =
-    auction.titleDeed ||
-    data.titleDeed ||
-    getPropertyIdFromLink(auction.propertyHref);
-
-  db.set(`properties.${propertyId}`, {
-    ...data,
-    propertyId,
-  }).write();
+  const propertyId = getPropertyId(auction, data);
+  db.set(`properties.${propertyId}`, data).write();
 };
 
 export const getPropertiesData = async () => {
@@ -34,7 +43,6 @@ export const getPropertiesData = async () => {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const auctionsData = db.get('auctions').value();
-    const existingData = db.get('properties').value();
     const auctionsArray = Object.keys(auctionsData).map(
       key => auctionsData[key],
     );
@@ -42,7 +50,9 @@ export const getPropertiesData = async () => {
     for (const auction of auctionsArray) {
       const isEmpty = Object.keys(auction).length === 0;
       if (!isEmpty) {
-        const dataExists = existingData[auction.titleDeed];
+        const dataExists = db
+          .get('properties')
+          .some(property => property.href === auction.propertyHref);
         if (!dataExists) {
           await getPropertyData(page, auction);
         } else {
