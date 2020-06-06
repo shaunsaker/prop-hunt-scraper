@@ -49,29 +49,29 @@ export interface PropertyData {
   cityId: CityId;
 }
 
-export interface SuburbCsv {
-  Town: string;
-  'Box code': string;
-  'Street code': string;
-  City: string;
+type ProvinceId = string;
+export interface Province {
+  name: string;
 }
 
 type CityId = string;
 export interface City {
   name: string;
+  modernName?: string;
+  provinceId: string;
 }
 
 type SuburbId = string;
 export interface Suburb {
   name: string;
   cityId: string;
-  streetCode?: string;
 }
 
 export interface Database {
   auctionLinks: AuctionLink[];
   auctions: Record<string, AuctionData>;
   properties: Record<string, PropertyData>;
+  provinces: Record<ProvinceId, Province>;
   cities: Record<CityId, City>;
   suburbs: Record<SuburbId, Suburb>;
 }
@@ -80,6 +80,7 @@ export const initialState: Database = {
   auctionLinks: [],
   auctions: {},
   properties: {},
+  provinces: {},
   cities: {},
   suburbs: {},
 };
