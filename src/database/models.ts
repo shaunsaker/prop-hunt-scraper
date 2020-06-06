@@ -4,6 +4,7 @@ export interface AuctionLink {
 }
 
 export interface AuctionData {
+  id: string;
   href: string;
   auctionVenue: string;
   propertyHref: string; // get from propertyOnAuction
@@ -25,6 +26,7 @@ export interface AuctionData {
 }
 
 export interface PropertyData {
+  id: string;
   href: string;
   propertyType: string;
   erfNumber: string;
@@ -43,6 +45,8 @@ export interface PropertyData {
   bathrooms: string;
   livingRooms: string;
   garages: string;
+  suburbId: SuburbId;
+  cityId: CityId;
 }
 
 export interface SuburbCsv {
@@ -61,7 +65,7 @@ type SuburbId = string;
 export interface Suburb {
   name: string;
   cityId: string;
-  streetCode: string;
+  streetCode?: string;
 }
 
 export interface Database {
