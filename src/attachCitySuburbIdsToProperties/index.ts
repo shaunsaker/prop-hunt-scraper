@@ -1,55 +1,15 @@
 import axios from 'axios';
 import * as promptly from 'promptly';
-import { db } from '../database';
-import { PropertyData, Database, Suburb, City } from '../database/models';
+import { db, findExactOrPartialMatchInDb } from '../database';
+import { PropertyData, Suburb, City } from '../database/models';
 import { getPropertyId } from '../getPropertiesData';
 import { isObjectEmpty } from '../utils';
-
-enum ApiKeys {
-  Suburb = 'SubPlace',
-  City = 'Municipality',
-}
-
-interface ApiDataPoint {
-  type_name: ApiKeys;
-  name: string;
-}
-
-type ApiData = Record<string, ApiDataPoint>;
-
-const mapItPointEndpoint = 'https://mapit.code4sa.org/point/4326';
-
-const getApiValueFromKey = (data: ApiData, idType: ApiKeys) => {
-  return data[
-    Object.keys(data).filter(key => data[key].type_name === idType)[0]
-  ].name.toUpperCase();
-};
-
-const findExactOrPartialMatchInDb = (node: keyof Database, value: string) => {
-  // Try an exact match first
-  const match = db.get(`${node}.${value}`).value();
-
-  if (match) {
-    return match;
-  }
-
-  // Try partial match
-  const partialMatch = db
-    .get(node)
-    // @ts-ignore filter does exist
-    .filter(
-      item =>
-        value.includes(item.name) ||
-        value
-          .split(' ')
-          .join('')
-          .includes(item.name),
-    )
-    .first()
-    .value();
-
-  return partialMatch;
-};
+import {
+  MapItApiData,
+  getApiValueFromKey,
+  MapItApiDataKeys,
+  mapItPointEndpoint,
+} from '../api/mapIt';
 
 const parsePropertyCoordinates = (coordinates: string, reverse?: boolean) => {
   const arr = coordinates.split(' / ');
@@ -60,15 +20,15 @@ const parsePropertyCoordinates = (coordinates: string, reverse?: boolean) => {
 
 const getSuburbFromUserInput = async (
   property: PropertyData,
-  data: ApiData,
+  data: MapItApiData,
 ) => {
   console.log({ property, data });
   let suburbFromApi = '';
   let cityFromApi = '';
 
   if (!isObjectEmpty(data)) {
-    suburbFromApi = getApiValueFromKey(data, ApiKeys.Suburb);
-    cityFromApi = getApiValueFromKey(data, ApiKeys.City).replace(
+    suburbFromApi = getApiValueFromKey(data, MapItApiDataKeys.Suburb);
+    cityFromApi = getApiValueFromKey(data, MapItApiDataKeys.City).replace(
       'CITY OF ',
       '',
     );
@@ -126,7 +86,7 @@ const getSuburbFromUserInput = async (
 
 const getSuburbCityIdsFromProperty = async (
   property: PropertyData,
-  data: ApiData,
+  data: MapItApiData,
 ) => {
   // There is no data, probably from coordinates that were set to 0,0
   // Use the property township
@@ -153,14 +113,14 @@ const getSuburbCityIdsFromProperty = async (
 };
 
 const getSuburbCityIdsFromApiData = async (
-  data: ApiData,
+  data: MapItApiData,
   property: PropertyData,
 ) => {
   if (isObjectEmpty(data)) {
     return getSuburbCityIdsFromProperty(property, data);
   }
 
-  const suburbFromApi = getApiValueFromKey(data, ApiKeys.Suburb);
+  const suburbFromApi = getApiValueFromKey(data, MapItApiDataKeys.Suburb);
   const suburbInDb = findExactOrPartialMatchInDb(
     'suburbs',
     suburbFromApi,
@@ -178,7 +138,7 @@ const attachCitySuburbIdsToProperty = async (property: PropertyData) => {
   const url = `${mapItPointEndpoint}/${lngLat}`;
   console.log(`Fetching city suburb data from ${url}`);
   const response = await axios.get(url);
-  const data: ApiData = response.data;
+  const data: MapItApiData = response.data;
   const { suburbId, cityId } = await getSuburbCityIdsFromApiData(
     data,
     property,
