@@ -47,6 +47,7 @@ export interface PropertyData {
   garages: string;
   suburbId: SuburbId;
   cityId: CityId;
+  provinceId: ProvinceId;
 }
 
 type ProvinceId = string;

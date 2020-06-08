@@ -21,7 +21,7 @@ const parsePropertyCoordinates = (coordinates: string, reverse?: boolean) => {
 const getSuburbFromUserInput = async (
   property: PropertyData,
   data: MapItApiData,
-) => {
+): Promise<{ suburbId: string; cityId: string; provinceId: string }> => {
   console.log({ property, data });
   let suburbFromApi = '';
   let cityFromApi = '';
@@ -73,21 +73,26 @@ const getSuburbFromUserInput = async (
   }
 
   // Add the city if it doesn't already exist
-  const cityInDb = db.get(`cities.${cityFromUser}`).value();
+  const cityInDb: City = db.get(`cities.${cityFromUser}`).value();
   if (!cityInDb) {
-    const newCityData: City = { name: cityFromUser };
-    db.get('cities')
-      .set(cityFromUser, newCityData)
-      .write();
+    // const newCityData: City = { name: cityFromUser };
+    // db.get('cities')
+    //   .set(cityFromUser, newCityData)
+    //   .write();
+    throw new Error('City does not exist');
   }
 
-  return { suburbId: suburbFromUser, cityId: cityFromUser };
+  return {
+    suburbId: suburbFromUser,
+    cityId: cityFromUser,
+    provinceId: cityInDb.provinceId,
+  };
 };
 
 const getSuburbCityIdsFromProperty = async (
   property: PropertyData,
   data: MapItApiData,
-) => {
+): Promise<{ suburbId: string; cityId: string; provinceId: string }> => {
   // There is no data, probably from coordinates that were set to 0,0
   // Use the property township
   const propertyTownship = property.township.toUpperCase();
@@ -106,16 +111,16 @@ const getSuburbCityIdsFromProperty = async (
     return await getSuburbFromUserInput(property, data);
   }
 
-  return {
-    suburbId: suburbInDb.name,
-    cityId: suburbInDb.cityId,
-  };
+  const cityId = suburbInDb.cityId;
+  const cityInDb: City = db.get(`cities.${cityId}`).value();
+
+  return { suburbId: suburbInDb.name, cityId, provinceId: cityInDb.provinceId };
 };
 
-const getSuburbCityIdsFromApiData = async (
+const getLocalityIds = async (
   data: MapItApiData,
   property: PropertyData,
-) => {
+): Promise<{ suburbId: string; cityId: string; provinceId: string }> => {
   if (isObjectEmpty(data)) {
     return getSuburbCityIdsFromProperty(property, data);
   }
@@ -130,25 +135,28 @@ const getSuburbCityIdsFromApiData = async (
     return getSuburbCityIdsFromProperty(property, data);
   }
 
-  return { suburbId: suburbInDb.name, cityId: suburbInDb.cityId };
+  const cityId = suburbInDb.cityId;
+  const cityInDb: City = db.get(`cities.${cityId}`).value();
+
+  return { suburbId: suburbInDb.name, cityId, provinceId: cityInDb.provinceId };
 };
 
 const attachCitySuburbIdsToProperty = async (property: PropertyData) => {
   const lngLat = parsePropertyCoordinates(property.coordinates, true);
-  const url = `${mapItPointEndpoint}/${lngLat}`;
+  const url = `${mapItPointEndpoint}/${lngLat}`; // TODO: Use Google Maps?
   console.log(`Fetching city suburb data from ${url}`);
   const response = await axios.get(url);
   const data: MapItApiData = response.data;
-  const { suburbId, cityId } = await getSuburbCityIdsFromApiData(
-    data,
-    property,
+  const { suburbId, cityId, provinceId } = await getLocalityIds(data, property);
+  console.log(
+    `Found suburbId: ${suburbId}, cityId: ${cityId}, provinceId: ${provinceId}`,
   );
-  console.log(`Found suburbId: ${suburbId}, cityId: ${cityId}`);
 
   const propertyId = getPropertyId(null, property);
-  db.update(`properties.${propertyId}`, existingData => {
+  db.update(`properties.${propertyId}`, (existingData: PropertyData) => {
     return {
       ...existingData,
+      provinceId,
       cityId,
       suburbId,
     };
