@@ -1,7 +1,7 @@
 import * as csvtojson from 'csvtojson/v2';
 import * as path from 'path';
 import * as promptly from 'promptly';
-import { City, Suburb, Province } from '../database/models';
+import { City, Suburb, Province, CityId } from '../database/models';
 import { db } from '../database';
 
 interface ProvinceCityCsv {
@@ -13,6 +13,45 @@ interface SuburbCsv {
   Town: string;
   City: string;
 }
+
+export const getCityFromUserInput = async (cityId: CityId): Promise<CityId> => {
+  const answer = await promptly.prompt(
+    `${cityId} does not exist. Is this a modern name for a city (y/n)?`,
+  );
+
+  if (answer.toUpperCase() === 'Y') {
+    const existingCityId = await promptly.prompt(
+      'What is the original cities name?',
+    );
+    db.update(`cities.${existingCityId}`, existingData => {
+      return {
+        ...existingData,
+        modernName: cityId,
+      };
+    }).write();
+
+    return existingCityId;
+  } else {
+    const newCityId = await promptly.prompt(
+      `${cityId} does not exist. What city should we add?`,
+    );
+
+    if (answer) {
+      const provinceId = await promptly.prompt(
+        'What is the province id for this new city?',
+      );
+      const city: City = {
+        name: newCityId,
+        provinceId,
+      };
+      db.get('cities')
+        .set(newCityId, city)
+        .write();
+    }
+
+    return newCityId;
+  }
+};
 
 export const createLocalityData = async () => {
   // Resets
@@ -99,38 +138,7 @@ export const createLocalityData = async () => {
                 .set(suburbId, suburb)
                 .write();
             } else {
-              const answer = await promptly.prompt(
-                `${cityId} does not exist. Is this a modern name for a city (y/n)?`,
-              );
-
-              if (answer === 'y') {
-                const cityName = await promptly.prompt(
-                  'What is the original cities name?',
-                );
-                db.update(`cities.${cityName}`, existingData => {
-                  return {
-                    ...existingData,
-                    modernName: cityId,
-                  };
-                }).write();
-              } else {
-                const answer = await promptly.prompt(
-                  `${cityId} does not exist. Should we add it as a new city (y/n)?`,
-                );
-
-                if (answer === 'y') {
-                  const provinceId = await promptly.prompt(
-                    'What is the province id for this new city?',
-                  );
-                  const city: City = {
-                    name: cityId,
-                    provinceId,
-                  };
-                  db.get('cities')
-                    .set(cityId, city)
-                    .write();
-                }
-              }
+              await getCityFromUserInput(cityId);
             }
           }
         }
@@ -143,5 +151,3 @@ export const createLocalityData = async () => {
       .size()} cities and ${db.get('suburbs').size()} suburbs.`,
   );
 };
-
-createLocalityData();

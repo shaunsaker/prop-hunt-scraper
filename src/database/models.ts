@@ -25,7 +25,15 @@ export interface AuctionData {
   attorneyUnparsedLine5: string;
 }
 
-export interface PropertyData {
+export interface Locality {
+  streetNumber: string;
+  street: string;
+  suburbId: SuburbId;
+  cityId: CityId;
+  provinceId: ProvinceId;
+}
+
+export interface PropertyData extends Locality {
   id: string;
   href: string;
   propertyType: string;
@@ -45,24 +53,21 @@ export interface PropertyData {
   bathrooms: string;
   livingRooms: string;
   garages: string;
-  suburbId: SuburbId;
-  cityId: CityId;
-  provinceId: ProvinceId;
 }
 
-type ProvinceId = string;
+export type ProvinceId = string;
 export interface Province {
   name: string;
 }
 
-type CityId = string;
+export type CityId = string;
 export interface City {
   name: string;
   modernName?: string;
   provinceId: string;
 }
 
-type SuburbId = string;
+export type SuburbId = string;
 export interface Suburb {
   name: string;
   cityId: string;
