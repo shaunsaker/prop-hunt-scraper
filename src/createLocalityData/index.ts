@@ -53,9 +53,10 @@ const getVerifiedLocality = async (
 
 const addAlternativeNameToLocality = (
   alternativeName: string,
-  existingCityId: string,
+  dbNode: keyof Database,
+  existingLocalityId: string,
 ) => {
-  db.update(`cities.${existingCityId}`, (existingData: City) => {
+  db.update(`${dbNode}.${existingLocalityId}`, (existingData: City) => {
     const alternateNames = [...existingData.alternateNames, alternativeName];
     return {
       ...existingData,
@@ -63,7 +64,7 @@ const addAlternativeNameToLocality = (
     };
   }).write();
   console.log(
-    `Adding new alternative name: ${alternativeName} to ${existingCityId}.`,
+    `Adding new alternative name: ${alternativeName} to ${dbNode}.${existingLocalityId}.`,
   );
 };
 
@@ -83,6 +84,7 @@ const createLocalityDataByLocalityType = async <T extends Locality>(
     const isNotLocalityType = findExactOrPartialMatchInDb(
       notDbNode,
       localityName,
+      ['name'],
     );
 
     if (!isNotLocalityType) {
@@ -99,8 +101,7 @@ const createLocalityDataByLocalityType = async <T extends Locality>(
           ['name', 'alternateNames'],
         );
         if (localityExists) {
-          const existingLocality = localityExists.name;
-          addAlternativeNameToLocality(localityName, existingLocality);
+          addAlternativeNameToLocality(localityName, dbNode, localityExists.id);
         } else {
           const alternateNames = [];
           if (localityName !== verifiedLocalityName) {
@@ -153,7 +154,7 @@ const createLocalityDataByLocalityType = async <T extends Locality>(
         item => item === localityName,
       );
       if (!existingLocalityHasAlternateNames) {
-        addAlternativeNameToLocality(localityName, existingLocalityId);
+        addAlternativeNameToLocality(localityName, dbNode, existingLocalityId);
       }
     }
   }
@@ -188,12 +189,17 @@ const createCities = async () => {
       provinceName,
       ['name', 'alternateNames'],
     );
+
+    if (!province) {
+      throw new Error(`No city found for ${provinceName}.`);
+    }
+
     await createLocalityDataByLocalityType<Province>(
       GoogleMapsApiLocalityType.city,
       cityName,
       'cities',
       'notCities',
-      { provinceId: province?.id },
+      { provinceId: province.id },
     );
   }
 };
@@ -210,12 +216,17 @@ const createSuburbs = async () => {
       'name',
       'alternateNames',
     ]);
+
+    if (!city) {
+      throw new Error(`No city found for ${suburbName}.`);
+    }
+
     await createLocalityDataByLocalityType<Suburb>(
       GoogleMapsApiLocalityType.city,
       suburbName,
       'suburbs',
       'notSuburbs',
-      { cityId: city?.id },
+      { cityId: city.id },
     );
   }
 
@@ -231,9 +242,9 @@ export const createLocalityData = async () => {
   // db.unset('suburbs').write();
   // db.unset('notSuburbs').write();
 
-  await createProvinces();
-  // await createCities();
-  // await createSuburbs();
+  // await createProvinces();
+  await createCities();
+  // await createSuburbs(); // TODO:
 
   console.log(
     `We have ${db.get('provinces').size()} provinces, ${db
