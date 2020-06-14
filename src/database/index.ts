@@ -8,31 +8,42 @@ db.defaults(initialState).write();
 
 export { db };
 
-export const findExactOrPartialMatchInDb = (
+export const findExactOrPartialMatchInDb = <T>(
   node: keyof Database,
   value: string,
-) => {
-  // Try an exact match first
+  searchFields?: (keyof T)[],
+): T | null => {
+  // Try get an exact match first
   const match = db.get(`${node}.${value}`).value();
 
   if (match) {
     return match;
   }
 
-  // Try partial match
-  const partialMatch = db
-    .get(node)
-    // @ts-ignore filter does exist
-    .filter(
-      item =>
-        value.includes(item.name) ||
-        value
-          .split(' ')
-          .join('')
-          .includes(item.name),
-    )
-    .first()
-    .value();
+  if (searchFields) {
+    // Try partial match on searchFields
+    const partialMatch = db
+      .get(node)
+      // @ts-ignore filter does exist
+      .filter(item => {
+        return searchFields.some(field => {
+          if (!item[field]) {
+            return false;
+          } else if (Array.isArray(item[field])) {
+            return item[field].some(item_ => item_ === value);
+          } else {
+            return item[field] === value;
+          }
+        });
+      })
+      .first()
+      .value();
 
-  return partialMatch;
+    if (partialMatch) {
+      return partialMatch;
+    }
+    return null;
+  }
+
+  return null;
 };

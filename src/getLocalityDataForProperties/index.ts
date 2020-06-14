@@ -1,7 +1,14 @@
 import axios from 'axios';
 import * as promptly from 'promptly';
-import { db } from '../database';
-import { PropertyData, Locality, Database } from '../database/models';
+import { db, findExactOrPartialMatchInDb } from '../database';
+import {
+  PropertyData,
+  Locality,
+  Database,
+  Province,
+  City,
+  Suburb,
+} from '../database/models';
 import {
   googleGeocodingApiEndpoint,
   GoogleGeocodingApiData,
@@ -10,6 +17,7 @@ import {
   GooglePlacesApiData,
 } from '../api/googleMaps';
 import { getPropertyId } from '../getPropertiesData';
+import { fetchData } from '../utils';
 
 const parsePropertyCoordinates = (
   coordinates: string,
@@ -28,25 +36,39 @@ const parsePropertyCoordinates = (
   return sortedArr.join(',');
 };
 
-const fetchData = async <T>(url: string): Promise<T> => {
-  console.log(`Fetching data from ${url}`);
-  const response = await axios.get(url);
-  const data: T = response.data;
-
-  return data;
-};
-
 const verifyOrCreateLocalityInDb = async (
   localityId: string,
   dbNode: keyof Database,
-) => {
-  const localityExists = Boolean(
-    db.get(`${dbNode}.${localityId.toUpperCase()}`).value(),
-  );
+  locality: Locality,
+): Promise<Locality> => {
+  const localityExists = findExactOrPartialMatchInDb(dbNode, localityId, [
+    'alternateNames',
+  ]);
   if (localityExists) {
-    return;
+    return locality;
   } else {
-    throw new Error(`${localityId} does not exist in ${dbNode}.`);
+    // TODO: Only ask in development
+    const shouldAddLocality = await promptly.prompt(
+      `${localityId} does not exist in ${dbNode}. Would you like to add it? (y/n)`,
+    );
+
+    if (shouldAddLocality === 'y') {
+      const data: any = {
+        name: localityId,
+      };
+      if (dbNode === 'suburbs') {
+        data.cityId = locality.cityId;
+      } else if (dbNode === 'cities') {
+        data.provinceId = locality.provinceId;
+      }
+
+      // db.get(dbNode)
+      //   .set(localityId.toUpperCase(), data)
+      //   .write();
+
+      console.log(`Added ${localityId} to ${dbNode}.`);
+    }
+    return locality;
   }
 };
 
@@ -103,9 +125,27 @@ export const getLocalityDataForProperties = async () => {
         `Found streetNumber: ${locality?.streetNumber}, street: ${locality?.street}, suburbId: ${locality?.suburbId}, cityId: ${locality?.cityId}, provinceId: ${locality?.provinceId}`,
       );
 
-      await verifyOrCreateLocalityInDb(locality.suburbId, 'suburbs');
-      await verifyOrCreateLocalityInDb(locality.cityId, 'cities');
-      await verifyOrCreateLocalityInDb(locality.provinceId, 'provinces');
+      if (locality.suburbId) {
+        locality = await verifyOrCreateLocalityInDb(
+          locality.suburbId,
+          'suburbs',
+          locality,
+        );
+      }
+      if (locality.cityId) {
+        locality = await verifyOrCreateLocalityInDb(
+          locality.cityId,
+          'cities',
+          locality,
+        );
+      }
+      if (locality.provinceId) {
+        locality = await verifyOrCreateLocalityInDb(
+          locality.provinceId,
+          'provinces',
+          locality,
+        );
+      }
 
       // const propertyId = getPropertyId(null, property);
       // db.update(

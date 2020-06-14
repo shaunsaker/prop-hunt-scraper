@@ -1,4 +1,4 @@
-enum GoogleMapsApiLocalityType {
+export enum GoogleMapsApiLocalityType {
   'street_number' = 'street_number',
   street = 'route',
   suburb = 'sublocality',
@@ -22,10 +22,13 @@ export interface GoogleGeocodingApiData {
 export interface GooglePlacesCandidate {
   geometry: {
     location: {
-      lat: string;
-      lng: string;
+      lat: number;
+      lng: number;
     };
   };
+  types: GoogleMapsApiLocalityType[];
+  name: string;
+  place_id: string;
 }
 
 export type GooglePlacesApiData = {
@@ -33,10 +36,15 @@ export type GooglePlacesApiData = {
 };
 
 export const googleGeocodingApiEndpoint = `https://maps.googleapis.com/maps/api/geocode/json?key=${process.env.GOOGLE_MAPS_API_KEY}&latlng=`;
-export const googlePlacesApiEndpoint = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?inputtype=textquery&fields=geometry&key=${process.env.GOOGLE_MAPS_API_KEY}&input=`;
+export const googlePlacesApiEndpoint = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?inputtype=textquery&fields=geometry,types,name,place_id&key=${process.env.GOOGLE_MAPS_API_KEY}&input=`;
+export const googlePlacesApiLimit = 11000;
 
-const removeSuburbAcronym = (string: string): string => {
+const removeAcronym = (string: string): string => {
   return string.replace(/( ?-? [A-Z]+[A-Z.])/g, '');
+};
+
+const replaceHyphenWithWhitespace = (string: string): string => {
+  return string.replace(/-/g, ' ');
 };
 
 const getGoogleMapsApiLocalityType = (
@@ -48,7 +56,7 @@ const getGoogleMapsApiLocalityType = (
   )[0];
 
   if (localityData) {
-    return removeSuburbAcronym(localityData.long_name);
+    return replaceHyphenWithWhitespace(removeAcronym(localityData.long_name));
   }
 
   return '';

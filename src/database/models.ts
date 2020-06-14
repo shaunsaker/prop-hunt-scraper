@@ -55,21 +55,27 @@ export interface PropertyData extends Locality {
   garages: string;
 }
 
-export type ProvinceId = string;
-export interface Province {
+export interface Locality {
+  id: string;
   name: string;
+  alternateNames?: string[];
+  coords: {
+    lat: number;
+    lng: number;
+  };
+  googlePlaceId: string;
 }
 
+export type ProvinceId = string;
+export type Province = Locality;
+
 export type CityId = string;
-export interface City {
-  name: string;
-  modernName?: string;
+export interface City extends Locality {
   provinceId: string;
 }
 
 export type SuburbId = string;
-export interface Suburb {
-  name: string;
+export interface Suburb extends Locality {
   cityId: string;
 }
 
@@ -78,8 +84,12 @@ export interface Database {
   auctions: Record<string, AuctionData>;
   properties: Record<string, PropertyData>;
   provinces: Record<ProvinceId, Province>;
+  notProvinces: Record<ProvinceId, Province>;
   cities: Record<CityId, City>;
+  notCities: Record<CityId, City>;
   suburbs: Record<SuburbId, Suburb>;
+  notSuburbs: Record<SuburbId, Suburb>;
+  googlePlacesApiCalls: number;
 }
 
 export const initialState: Database = {
@@ -87,6 +97,10 @@ export const initialState: Database = {
   auctions: {},
   properties: {},
   provinces: {},
+  notProvinces: {},
   cities: {},
+  notCities: {},
   suburbs: {},
+  notSuburbs: {},
+  googlePlacesApiCalls: 0,
 };
