@@ -221,49 +221,24 @@ const createSuburbs = async () => {
 
   for (const item of suburbsArray) {
     const suburbName = item.Town.toUpperCase();
-    const isNotLocalityType = findExactOrPartialMatchInDb(
-      notDbNode,
-      suburbName,
-      ['name'],
-    );
+    const cityName = item.City.toUpperCase();
+    const city = findExactOrPartialMatchInDb<City>('cities', cityName, [
+      'name',
+      'alternateNames',
+    ]);
 
-    if (!isNotLocalityType) {
-      const cityName = item.City.toUpperCase();
-      const city = findExactOrPartialMatchInDb<City>('cities', cityName, [
-        'name',
-        'alternateNames',
-      ]);
-      let cityId = city?.id;
-
-      if (!city) {
-        const verifiedSuburb = await getVerifiedLocality(
-          suburbName,
-          GoogleMapsApiLocalityType.suburb,
-        );
-
-        if (verifiedSuburb) {
-          const { lat, lng } = verifiedSuburb.geometry.location;
-          const geocodingUrl = `${googleGeocodingApiEndpoint}${lat},${lng}`;
-          const localityData = await fetchData<GoogleGeocodingApiData>(
-            geocodingUrl,
-          );
-          const parsedLocalityData = getLocalityIdsFromGoogleGeocodingApiData(
-            localityData,
-          );
-          cityId = parsedLocalityData.cityId.toUpperCase();
-        }
+    if (!cityName || cityName === '-' || !city) {
+      if (cityName && cityName !== '-' && !city) {
+        console.log(`No city found for ${suburbName}, ${item.City}.`);
       }
 
-      if (cityId) {
-        await createLocalityDataByLocalityType<Suburb>(
-          GoogleMapsApiLocalityType.suburb,
-          suburbName,
-          'suburbs',
-          notDbNode,
-          { cityId },
-        );
-      } else {
-        // No city and is not a suburb
+      const suburbIsAlreadyInNotDb = findExactOrPartialMatchInDb<City>(
+        notDbNode,
+        suburbName,
+        ['name', 'alternateNames'],
+      );
+
+      if (!suburbIsAlreadyInNotDb) {
         const localityId = shortid();
         const locality = {
           id: localityId,
@@ -274,6 +249,14 @@ const createSuburbs = async () => {
           .write();
         console.log(`Adding ${locality.name} to ${notDbNode}.`);
       }
+    } else {
+      await createLocalityDataByLocalityType<Suburb>(
+        GoogleMapsApiLocalityType.suburb,
+        suburbName,
+        'suburbs',
+        notDbNode,
+        { cityId: city.id },
+      );
     }
   }
 

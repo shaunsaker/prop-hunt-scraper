@@ -38,7 +38,7 @@ export type GooglePlacesApiData = {
 
 export const googleGeocodingApiEndpoint = `https://maps.googleapis.com/maps/api/geocode/json?key=${process.env.GOOGLE_MAPS_API_KEY}&latlng=`;
 export const googlePlacesApiEndpoint = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?inputtype=textquery&fields=geometry,types,name,place_id&key=${process.env.GOOGLE_MAPS_API_KEY}&input=`;
-export const googlePlacesApiLimit = 11000;
+export const googlePlacesApiLimit = 10000;
 
 const removeAcronym = (string: string): string => {
   return string.replace(/( ?-? [A-Z]+[A-Z.])/g, '');

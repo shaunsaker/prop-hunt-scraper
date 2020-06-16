@@ -25,13 +25,13 @@ export interface AuctionData {
   attorneyUnparsedLine5: string;
 }
 
-export interface Locality {
-  streetNumber: string;
-  street: string;
-  suburbId: SuburbId;
-  cityId: CityId;
-  provinceId: ProvinceId;
-}
+// export interface Locality {
+//   streetNumber: string;
+//   street: string;
+//   suburbId: SuburbId;
+//   cityId: CityId;
+//   provinceId: ProvinceId;
+// }
 
 export interface PropertyData extends Locality {
   id: string;
