@@ -33,6 +33,7 @@ export interface GooglePlacesCandidate {
 
 export type GooglePlacesApiData = {
   candidates: GooglePlacesCandidate[];
+  error_message?: string;
 };
 
 export const googleGeocodingApiEndpoint = `https://maps.googleapis.com/maps/api/geocode/json?key=${process.env.GOOGLE_MAPS_API_KEY}&latlng=`;

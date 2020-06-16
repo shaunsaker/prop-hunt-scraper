@@ -9,6 +9,9 @@ import {
   GoogleMapsApiLocalityType,
   GooglePlacesCandidate,
   googlePlacesApiLimit,
+  GoogleGeocodingApiData,
+  googleGeocodingApiEndpoint,
+  getLocalityIdsFromGoogleGeocodingApiData,
 } from '../api/googleMaps';
 import { fetchData } from '../utils';
 
@@ -38,6 +41,10 @@ const getVerifiedLocality = async (
       `${googlePlacesApiEndpoint}${localityName} South Africa`,
     );
     const placesData = await fetchData<GooglePlacesApiData>(placesUrl);
+
+    if (placesData.error_message) {
+      throw new Error(placesData.error_message);
+    }
 
     if (placesData.candidates.length) {
       if (placesData.candidates[0].types.includes(localityType)) {
@@ -202,32 +209,72 @@ const createCities = async () => {
       { provinceId: province.id },
     );
   }
+
+  // TODO: Should we take notSuburbs?
 };
 
 const createSuburbs = async () => {
   const suburbsArray: SuburbCsv[] = await csvtojson().fromFile(
     path.join(__dirname, '../../../suburbs-south-africa.csv'),
   );
+  const notDbNode = 'notSuburbs';
 
   for (const item of suburbsArray) {
     const suburbName = item.Town.toUpperCase();
-    const cityName = item.City.toUpperCase();
-    const city = findExactOrPartialMatchInDb<City>('cities', cityName, [
-      'name',
-      'alternateNames',
-    ]);
-
-    if (!city) {
-      throw new Error(`No city found for ${suburbName}.`);
-    }
-
-    await createLocalityDataByLocalityType<Suburb>(
-      GoogleMapsApiLocalityType.city,
+    const isNotLocalityType = findExactOrPartialMatchInDb(
+      notDbNode,
       suburbName,
-      'suburbs',
-      'notSuburbs',
-      { cityId: city.id },
+      ['name'],
     );
+
+    if (!isNotLocalityType) {
+      const cityName = item.City.toUpperCase();
+      const city = findExactOrPartialMatchInDb<City>('cities', cityName, [
+        'name',
+        'alternateNames',
+      ]);
+      let cityId = city?.id;
+
+      if (!city) {
+        const verifiedSuburb = await getVerifiedLocality(
+          suburbName,
+          GoogleMapsApiLocalityType.suburb,
+        );
+
+        if (verifiedSuburb) {
+          const { lat, lng } = verifiedSuburb.geometry.location;
+          const geocodingUrl = `${googleGeocodingApiEndpoint}${lat},${lng}`;
+          const localityData = await fetchData<GoogleGeocodingApiData>(
+            geocodingUrl,
+          );
+          const parsedLocalityData = getLocalityIdsFromGoogleGeocodingApiData(
+            localityData,
+          );
+          cityId = parsedLocalityData.cityId.toUpperCase();
+        }
+      }
+
+      if (cityId) {
+        await createLocalityDataByLocalityType<Suburb>(
+          GoogleMapsApiLocalityType.suburb,
+          suburbName,
+          'suburbs',
+          notDbNode,
+          { cityId },
+        );
+      } else {
+        // No city and is not a suburb
+        const localityId = shortid();
+        const locality = {
+          id: localityId,
+          name: suburbName,
+        };
+        db.get(notDbNode)
+          .set(localityId, locality)
+          .write();
+        console.log(`Adding ${locality.name} to ${notDbNode}.`);
+      }
+    }
   }
 
   // TODO: Should we take notCities?
@@ -241,10 +288,11 @@ export const createLocalityData = async () => {
   // db.unset('notCities').write();
   // db.unset('suburbs').write();
   // db.unset('notSuburbs').write();
+  // db.set('googlePlacesApiCalls', 0).write();
 
   // await createProvinces();
-  await createCities();
-  // await createSuburbs(); // TODO:
+  // await createCities();
+  await createSuburbs();
 
   console.log(
     `We have ${db.get('provinces').size()} provinces, ${db
