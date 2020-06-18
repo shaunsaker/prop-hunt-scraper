@@ -15,6 +15,7 @@ import {
   getLocalityIdsFromGoogleGeocodingApiData,
   googlePlacesApiEndpoint,
   GooglePlacesApiData,
+  getLocalityFromCoordinates,
 } from '../api/googleMaps';
 import { getPropertyId } from '../getPropertiesData';
 import { fetchData } from '../utils';
@@ -70,13 +71,6 @@ const verifyOrCreateLocalityInDb = async (
     }
     return locality;
   }
-};
-
-const getLocalityFromCoordinates = async (coordinates: string) => {
-  const url = `${googleGeocodingApiEndpoint}${coordinates}`;
-  const data = await fetchData<GoogleGeocodingApiData>(url);
-
-  return getLocalityIdsFromGoogleGeocodingApiData(data);
 };
 
 const getLocalityFromTownship = async (township: string) => {

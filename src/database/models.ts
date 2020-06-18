@@ -89,6 +89,7 @@ export interface Database {
   notCities: Record<CityId, City>;
   suburbs: Record<SuburbId, Suburb>;
   notSuburbs: Record<SuburbId, Suburb>;
+  notNeighborhoodsOrSuburbs: Record<SuburbId, Suburb>;
   googlePlacesApiCalls: number;
 }
 
@@ -102,5 +103,6 @@ export const initialState: Database = {
   notCities: {},
   suburbs: {},
   notSuburbs: {},
+  notNeighborhoodsOrSuburbs: {},
   googlePlacesApiCalls: 0,
 };

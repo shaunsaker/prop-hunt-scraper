@@ -12,8 +12,9 @@ import {
   GoogleGeocodingApiData,
   googleGeocodingApiEndpoint,
   getLocalityIdsFromGoogleGeocodingApiData,
+  getLocalityFromCoordinates,
 } from '../api/googleMaps';
-import { fetchData } from '../utils';
+import { fetchData, isUpperCased } from '../utils';
 
 interface ProvinceCityCsv {
   AccentCity: string;
@@ -81,7 +82,7 @@ const createLocalityDataByLocalityType = async <T extends Locality>(
   dbNode: keyof Database,
   notDbNode: keyof Database,
   additionalData: Record<string, any> = {},
-) => {
+): Promise<T | null> => {
   let localityExists: T = findExactOrPartialMatchInDb(dbNode, localityName, [
     'name',
     'alternateNames',
@@ -133,9 +134,10 @@ const createLocalityDataByLocalityType = async <T extends Locality>(
               locality.name
             } with alternate name(s): ${locality.alternateNames.join(',')}.`,
           );
+          return locality; // only return locality when a new locality has been created
         }
       } else {
-        console.log(`${localityName} is not a Google Places ${localityType}.`);
+        // console.log(`${localityName} is not a Google Places ${localityType}.`);
         const localityId = shortid();
         const locality = {
           id: localityId,
@@ -149,7 +151,7 @@ const createLocalityDataByLocalityType = async <T extends Locality>(
           db.get(notDbNode)
             .set(localityId, locality)
             .write();
-          console.log(`Adding ${locality.name} to ${notDbNode}.`);
+          // console.log(`Adding ${locality.name} to ${notDbNode}.`);
         }
       }
     }
@@ -165,6 +167,7 @@ const createLocalityDataByLocalityType = async <T extends Locality>(
       }
     }
   }
+  return null;
 };
 
 const createProvinces = async () => {
@@ -191,7 +194,7 @@ const createCities = async () => {
   for (const item of provinceCitiesArray) {
     const cityName = item.AccentCity.toUpperCase();
     const provinceName = item.ProvinceName.toUpperCase();
-    const province = findExactOrPartialMatchInDb<City>(
+    const province = findExactOrPartialMatchInDb<Province>(
       'provinces',
       provinceName,
       ['name', 'alternateNames'],
@@ -209,58 +212,220 @@ const createCities = async () => {
       { provinceId: province.id },
     );
   }
-
-  // TODO: Should we take notSuburbs?
 };
 
-const createSuburbs = async () => {
-  const suburbsArray: SuburbCsv[] = await csvtojson().fromFile(
-    path.join(__dirname, '../../../suburbs-south-africa.csv'),
+const createSuburbFromName = async (
+  suburbName: string,
+  localityType: GoogleMapsApiLocalityType = GoogleMapsApiLocalityType.suburb,
+  notDbNode: keyof Database = 'notSuburbs',
+) => {
+  const suburb = await createLocalityDataByLocalityType<Suburb>(
+    localityType,
+    suburbName,
+    'suburbs',
+    notDbNode,
   );
-  const notDbNode = 'notSuburbs';
 
-  for (const item of suburbsArray) {
-    const suburbName = item.Town.toUpperCase();
-    const cityName = item.City.toUpperCase();
-    const city = findExactOrPartialMatchInDb<City>('cities', cityName, [
+  if (suburb) {
+    // Get the suburb's city id from geocoding api and update the suburb in the db
+    const { cityId: cityName, provinceId } = await getLocalityFromCoordinates(
+      `${suburb.coords.lat},${suburb.coords.lng}`,
+    );
+
+    // If the city is not already present in the db, add it
+    const cityNameDb = cityName.toUpperCase();
+    const cityExists = findExactOrPartialMatchInDb<City>('cities', cityNameDb, [
       'name',
       'alternateNames',
     ]);
-
-    if (!cityName || cityName === '-' || !city) {
-      if (cityName && cityName !== '-' && !city) {
-        console.log(`No city found for ${suburbName}, ${item.City}.`);
-      }
-
-      const suburbIsAlreadyInNotDb = findExactOrPartialMatchInDb<City>(
-        notDbNode,
-        suburbName,
-        ['name', 'alternateNames'],
-      );
-
-      if (!suburbIsAlreadyInNotDb) {
-        const localityId = shortid();
-        const locality = {
-          id: localityId,
-          name: suburbName,
-        };
-        db.get(notDbNode)
-          .set(localityId, locality)
-          .write();
-        console.log(`Adding ${locality.name} to ${notDbNode}.`);
-      }
-    } else {
-      await createLocalityDataByLocalityType<Suburb>(
-        GoogleMapsApiLocalityType.suburb,
-        suburbName,
-        'suburbs',
-        notDbNode,
-        { cityId: city.id },
-      );
+    let cityId = cityExists?.id;
+    if (!cityExists) {
+      const localityId = shortid();
+      const locality: City = {
+        id: localityId,
+        name: cityNameDb,
+        provinceId,
+        coords: suburb.coords,
+        googlePlaceId: '',
+      };
+      db.set(`cities.${localityId}`, locality).write();
+      console.log(`Added new city: ${cityNameDb}.`);
+      cityId = localityId;
     }
+
+    if (!cityId) {
+      throw new Error('No city id.');
+    }
+
+    db.update(`suburbs.${suburb.id}`, (existingData: Suburb) => {
+      return {
+        ...existingData,
+        cityId,
+      };
+    });
+  }
+};
+
+const createSuburbsFromSuburbsCsv = async () => {
+  const suburbsArray: SuburbCsv[] = await csvtojson().fromFile(
+    path.join(__dirname, '../../../suburbs-south-africa.csv'),
+  );
+
+  for (const item of suburbsArray) {
+    await createSuburbFromName(item.Town);
+  }
+};
+
+const createSuburbsFromNotCitiesDb = async () => {
+  // Try to see if any of the "notCities" are suburbs
+  const notCities = db.get('notCities').value();
+  const notCitiesArray = Object.keys(notCities).map(key => notCities[key]);
+
+  for (const item of notCitiesArray) {
+    await createSuburbFromName(item.name);
+  }
+};
+
+const createSuburbsFromNotSuburbsDb = async () => {
+  // Try see if there are any Google Places "neighborhoods" in the "notSuburbs" db and add those to suburbs
+  const notSuburbs = db.get('notSuburbs').value();
+  const notSuburbsArray = Object.keys(notSuburbs).map(key => notSuburbs[key]);
+
+  for (const item of notSuburbsArray) {
+    await createSuburbFromName(
+      item.name,
+      GoogleMapsApiLocalityType.neighborhood,
+      'notNeighborhoodsOrSuburbs',
+    );
+  }
+};
+
+const validateLocality = (
+  locality: Locality,
+  dbNode: keyof Database,
+  childDbNode: keyof Database,
+  childKey: string,
+  localityType: GoogleMapsApiLocalityType,
+) => {
+  if (locality.name) {
+    const duplicates: Locality[] = db
+      .get(dbNode)
+      // @ts-ignore filter does exist
+      .filter((item: Locality) => item.name === locality.name)
+      .value();
+
+    if (duplicates.length > 1) {
+      // Select the first one to keep
+      const selectedDuplicate = duplicates[0];
+
+      for (const duplicate of duplicates) {
+        if (duplicate.id !== selectedDuplicate.id) {
+          if (childDbNode && childKey) {
+            // Find all child nodes that have the duplicates id as a value for childKey
+            // Replace it with the selectedDuplicates id (since we're deleting the other duplicates)
+            const associatedChildNodes = db
+              .get(childDbNode)
+              // @ts-ignore filter does exist
+              .filter((item: Locality) => item[childKey] === duplicate.id)
+              .value();
+
+            for (const childNode of associatedChildNodes) {
+              db.update(
+                `${childDbNode}.${childNode.id}`,
+                (existingData: Locality) => {
+                  const newData = existingData;
+                  newData[childKey] = selectedDuplicate.id;
+                  return newData;
+                },
+              ).write();
+              console.log(
+                `Updated ${dbNode}.${childNode.id} ${childKey} from ${childNode[childKey]} to ${selectedDuplicate.id}`,
+              );
+            }
+          }
+
+          // Remove the duplicate from the db
+          db.unset(`${dbNode}.${duplicate.id}`).write();
+          console.log(`Removed ${dbNode}.${duplicate.id}.`);
+        }
+      }
+    }
+
+    // It should have an id
+    if (!locality.id) {
+      throw new Error(`${locality.name} does not have an id.`);
+    }
+
+    // It's name should be uppercased
+    if (!isUpperCased(locality.name)) {
+      throw new Error(`${locality.name}'s name is not uppercased.`);
+    }
+
+    // It should have coords
+    if (!locality.coords) {
+      throw new Error(`${locality.id} does not have coords.`);
+    }
+
+    // It should have a googlePlaceId
+    if (!locality.googlePlaceId) {
+      // TODO: Go and get it using the name
+      // console.log(`${locality.id} does not have a googlePlaceId.`);
+    }
+  } else {
+    db.unset(`${dbNode}.${locality.id}`).write();
+    console.log(`Removed ${locality.id} because it did not have a name.`);
+  }
+};
+
+const validateProvinces = () => {
+  const provinces = db.get('provinces').value();
+  const provincesArray = Object.keys(provinces).map(key => provinces[key]);
+
+  for (const item of provincesArray) {
+    validateLocality(
+      item,
+      'provinces',
+      'cities',
+      'provinceId',
+      GoogleMapsApiLocalityType.province,
+    );
   }
 
-  // TODO: Should we take notCities?
+  console.log('Provinces have been successfully validated.');
+};
+
+const validateCities = () => {
+  const cities = db.get('cities').value();
+  const citiesArray = Object.keys(cities).map(key => cities[key]);
+
+  for (const item of citiesArray) {
+    validateLocality(
+      item,
+      'cities',
+      'suburbs',
+      'cityId',
+      GoogleMapsApiLocalityType.city,
+    );
+  }
+
+  console.log('Cities have been successfully validated.');
+};
+
+const validateSuburbs = () => {
+  const suburbs = db.get('suburbs').value();
+  const suburbsArray = Object.keys(suburbs).map(key => suburbs[key]);
+
+  for (const item of suburbsArray) {
+    validateLocality(
+      item,
+      'suburbs',
+      null,
+      null,
+      GoogleMapsApiLocalityType.suburb,
+    );
+  }
+
+  console.log('Suburbs have been successfully validated.');
 };
 
 export const createLocalityData = async () => {
@@ -275,14 +440,22 @@ export const createLocalityData = async () => {
 
   // await createProvinces();
   // await createCities();
-  await createSuburbs();
+  // await createSuburbsFromSuburbsCsv();
+  // await createSuburbsFromNotCitiesDb();
+  // await createSuburbsFromNotSuburbsDb();
+
+  // await validateProvinces();
+  // await validateCities();
+  // await validateSuburbs();
 
   console.log(
     `We have ${db.get('provinces').size()} provinces, ${db
       .get('cities')
-      .size()} cities and ${db
+      .size()} cities, ${db.get('notCities').size()} notCities, ${db
       .get('suburbs')
-      .size()} suburbs. Total Google Places API calls: ${db
+      .size()} suburbs and ${db
+      .get('notSuburbs')
+      .size()} notSuburbs. Total Google Places API calls: ${db
       .get('googlePlacesApiCalls')
       .value()}`,
   );
